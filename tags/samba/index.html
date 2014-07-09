@@ -1,0 +1,57 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="alternative" href="/atom.xml" title="Yee's 部落格" type="application/atom+xml"><link rel="icon" href="/favicon.png"><title>samba - Yee's 部落格</title><link rel="stylesheet" href="/css/main.css" type="text/css"><!--[if lt IE 9]><script>(function(a,b){a="abbr article aside audio bdi canvas data datalist details dialog figcaption figure footer header hgroup main mark meter nav output progress section summary template time video".split(" ");for(b=a.length-1;b>=0;b--)document.createElement(a[b])})()</script><![endif]--></head><body><header class="head"><h1 class="head-title u-fl"><a href="/">Yee's 部落格</a></h1><nav class="head-nav u-fr"><ul class="head-nav__list"><li class="head-nav__item"><a href="/" class="head-nav__link">Home</a></li><li class="head-nav__item"><a href="/archives" class="head-nav__link">Archives</a></li></ul></nav></header><main class="main"><article class="post"><header class="post__head"><time datetime="2014-07-09T06:23:30.000Z" class="post__time">July 9, 2014</time><h1 class="post__title"><a href="/2014/07/09/ubuntu-samba-service-setup/">Ubuntu下samba共享服务设置</a></h1></header><div class="post__main echo"><p>Samba实现了windows共享服务，配置完成后可以通过windows网上邻居交换文件。</p>
+<p>首先安装samba软件包</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+</pre></td><td class="code"><pre><span class="built_in">sudo</span> apt-get install samba
+</pre></td></tr></table></figure>
+
+<p>安装完成后，打开/etc/samba/smb.conf，配置共享目录，个人习惯配置home目录跟/web目录</p>
+<figure class="highlight config"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+</pre></td><td class="code"><pre>[homes]
+   comment = Home Directories
+   browseable = <span class="literal">no</span>
+   <span class="comment">#允许向home目录写入文件</span>
+   read only = <span class="literal">no</span>
+
+[web]
+   path = /web
+   guest ok = <span class="literal">no</span>
+   browseable = <span class="literal">yes</span>
+   create mask = <span class="number">0644</span>
+   directory mask = <span class="number">0755</span>
+   read only = <span class="literal">no</span>
+</pre></td></tr></table></figure>
+
+<p>配置完成后重启samba服务，使配置文件生效。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+</pre></td><td class="code"><pre><span class="built_in">sudo</span> service smbd restart
+</pre></td></tr></table></figure>
+
+<p>samba有自己的用户授权体系，每个linux系统中原有的用户，都需要重新加入samba的用户库，并且重新设置密码，这样才能访问共享服务。<br>这里假设加入rose这个用户</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+</pre></td><td class="code"><pre><span class="built_in">sudo</span> smbpasswd <span class="operator">-a</span> rose
+</pre></td></tr></table></figure>
+
+<p>之后绑定域名dev.example.com到开发机，打开资源管理器，地址栏输入\dev.example.com就可以访问共享的资源了。</p>
+</div><footer class="post__foot u-cf"><ul class="post__tag u-fl"><li class="post__tag__item"><a href="/tags/samba/" class="post__tag__link">samba</a></li></ul><a href="/2014/07/09/ubuntu-samba-service-setup/#disqus_thread" class="post__foot-link u-fr">0 COMMENTS</a></footer></article></main><footer class="foot"><div class="foot-copy u-fl">&copy; 2014 Yu Fang</div><menu class="page-menu u-fr"><li class="page-menu__item"><span title="Previous" class="page-menu__link icon-arrow-left page-menu__link--disabled"></span></li><li class="page-menu__item"><span title="Next" class="page-menu__link icon-arrow-right page-menu__link--disabled"></span></li></menu></footer><script>(function(h,g,l,k,j,i){j=h.createElement(g),i=h.getElementsByTagName(g)[0],
+j.src="//"+l+".disqus.com/"+k+".js",i.parentNode.insertBefore(j,i)})
+(document,"script","yeesblog","count");
+</script><script>var disqus_shortname = "yeesblog";
+(function () {
+var s = document.createElement('script'); s.async = true;
+s.type = 'text/javascript';
+s.src = 'http://' + disqus_shortname + '.disqus.com/count.js';
+(document.getElementsByTagName('HEAD')[0] || document.getElementsByTagName('BODY')[0]).appendChild(s);
+}());
+</script></body></html>
