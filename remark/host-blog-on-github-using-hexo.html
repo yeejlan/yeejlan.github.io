@@ -38,7 +38,7 @@ class: inverse
 - [Hexo](http://hexo.io/)
 
 ```bash
-    A fast, simple & powerful blog framework, powered by Node.js
+    A fast, simple &amp; powerful blog framework, powered by Node.js
 ```
 ---
 class: inverse
@@ -281,8 +281,89 @@ class: inverse
   [http://duoshuo.com/](http://duoshuo.com/)
 
 ---
+class: inverse
+## Force regenerate static resources
+### 
+
+- Resource types in Hexo
+
+```
+    Page
+    Post
+    Asset
+```
+
+- Bugs: changes on asset(css/js file etc) can't get updated automically
+
+```config
+    E:\blog>hexo clean
+    [info] Deleted cache file
+    [info] Deleted public directory
+
+    E:\Dropbox\blog>hexo generate
+    [create] Public: js\remark.min.js
+    [create] Public: css\main.css
+    ...
+    [info] 17 files generated in 0.549s
+```
+
+---
+class: inverse
+## Disable layout and insert css/js
+### 
+
+- Disable layout
+
+  Edit your-post.md
+
+```config
+    layout: false
+```
+
+- Insert css/js
+
+```html
+    {% raw %}
+      <script src="/js/jquery.min.js" type="text/javascript"></script>
+    {% endraw %}
+```
+
+---
+class: inverse
+## Keep HTML as it is
+### 
+
+- By default, HTML will be processed the same way as markdown
+
+```bash
+    #windows
+    E:\blog>where hexo
+    C:\Users\user\AppData\Roaming\npm\hexo
+
+    #linux
+    whereis hexo 
+```
+- Edit npm\node_modules\hexo\lib\plugins\renderer\index.js
+
+```jaascript
+    var renderer = hexo.extend.renderer;
+
+    var html = require('./html');
+
+    //renderer.register('htm', 'html', html, true);
+    //renderer.register('html', 'html', html, true);
+
+    renderer.register('swig', 'html', require('./swig'), true);
+
+    ...
+```
+
+---
 class: center, middle, inverse
 ## Q &amp; A 
+---
+class: center, middle, inverse
+## Thank You.
 ---
 class: center, middle, inverse
 ### Powered by [remarkjs](http://remarkjs.com/)
