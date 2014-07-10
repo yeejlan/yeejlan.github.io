@@ -1,0 +1,191 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="alternative" href="/atom.xml" title="Yee's 部落格" type="application/atom+xml"><link rel="icon" href="/favicon.png"><title>mercurial - Yee's 部落格</title><link rel="stylesheet" href="/css/main.css" type="text/css"><!--[if lt IE 9]><script>(function(a,b){a="abbr article aside audio bdi canvas data datalist details dialog figcaption figure footer header hgroup main mark meter nav output progress section summary template time video".split(" ");for(b=a.length-1;b>=0;b--)document.createElement(a[b])})()</script><![endif]--></head><body><header class="head"><h1 class="head-title u-fl"><a href="/">Yee's 部落格</a></h1><nav class="head-nav u-fr"><ul class="head-nav__list"><li class="head-nav__item"><a href="/" class="head-nav__link">Home</a></li><li class="head-nav__item"><a href="/archives" class="head-nav__link">Archives</a></li></ul></nav></header><main class="main"><article class="post"><header class="post__head"><time datetime="2014-07-04T06:33:30.000Z" class="post__time">July 4, 2014</time><h1 class="post__title"><a href="/2014/07/04/mercurial-repository-install-guide/">Mercurial仓库架设</a></h1></header><div class="post__main echo"><p>Mercurial是使用python编写的，因此需要安装python包管理器，常见的包管理器有easy install和pip。个人推荐使用pip，因为pip比easy install更成熟，不会出现某个python模块安装不完整，导致无法卸载也无法重新安装的问题。</p>
+<p>安装easy install</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+</pre></td><td class="code"><pre><span class="built_in">sudo</span> apt-get install python-setuptools
+</pre></td></tr></table></figure>
+
+<p>用easy install安装pip </p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+</pre></td><td class="code"><pre><span class="built_in">sudo</span> easy_install pip
+</pre></td></tr></table></figure>
+
+<p>在安装mercurial之前, 需要先安装gcc等编译工具，以及python的开发支持库</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+</pre></td><td class="code"><pre><span class="built_in">sudo</span> apt-get install build-essential python-dev
+</pre></td></tr></table></figure>
+
+<p>安装mercurial</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+</pre></td><td class="code"><pre><span class="built_in">sudo</span> pip install mercurial
+</pre></td></tr></table></figure>
+
+<p>到目前为止mercurial已经安装完成了，命令行下输入”hg”就可以看到mercurial的help信息了。接下来配置一个mercurial的公共仓库，方便代码共享。</p>
+<p>平时我的开发网站放在/web目录下面，比如域名为demo.example.com的网站，物理路径是/web/demo.example.com</p>
+<p>首先初始化一个mercurial的仓库</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+</pre></td><td class="code"><pre>mkdir /web/demo.example.com && <span class="built_in">cd</span> /web/demo.example.com && hg init
+</pre></td></tr></table></figure>
+
+<p>接下来使用hgweb的wsgi脚本配置一个服务，详细信息可以参考: <a href="http://mercurial.selenic.com/wiki/PublishingRepositories#hgweb" target="_blank" rel="external">http://mercurial.selenic.com/wiki/PublishingRepositories#hgweb</a></p>
+<p>个人喜欢gunicorn作为python app的WSGI服务器，因此先安装gunicorn</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+</pre></td><td class="code"><pre><span class="built_in">sudo</span> pip install gunicorn
+</pre></td></tr></table></figure>
+
+<p>/web/hgweb.py (wsgi脚本)</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+</pre></td><td class="code"><pre><span class="comment"># An example WSGI for use with mod_wsgi, edit as necessary</span>
+<span class="comment"># See http://mercurial.selenic.com/wiki/modwsgi for more information</span>
+
+<span class="comment"># Path to repo or hgweb config to serve (see 'hg help hgweb')</span>
+config = <span class="string">"/web/hgweb.config"</span>
+
+<span class="comment"># Uncomment and adjust if Mercurial is not installed system-wide</span>
+<span class="comment"># (consult "installed modules" path from 'hg debuginstall'):</span>
+<span class="comment">#import sys; sys.path.insert(0, "/path/to/python/lib")</span>
+
+<span class="comment"># Uncomment to send python tracebacks to the browser if an error occurs:</span>
+<span class="keyword">import</span> cgitb; cgitb.enable()
+
+<span class="comment"># enable demandloading to reduce startup time</span>
+<span class="keyword">from</span> mercurial <span class="keyword">import</span> demandimport; demandimport.enable()
+
+<span class="keyword">from</span> mercurial.hgweb <span class="keyword">import</span> hgweb
+application = hgweb(config)
+</pre></td></tr></table></figure>
+
+<p>/web/hgweb.config 配置文件</p>
+<figure class="highlight config"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+</pre></td><td class="code"><pre>[paths]
+/ = /web/*
+
+[web]
+<span class="constant">style</span> = monoblue
+<span class="constant">push_ssl</span> = false
+<span class="constant">allow_push</span> = *
+</pre></td></tr></table></figure>
+
+<p>绑定hgrepos.example.com到开发环境IP<br>gunicorn —workers=2 hgweb:application —bind=0.0.0.0:8001  启动guincorn服务器看看</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+</pre></td><td class="code"><pre><span class="tag">Name</span>			<span class="tag">Description</span>		<span class="tag">Contact</span>		<span class="tag">Last</span> <span class="tag">modified</span>	 	 
+<span class="tag">demo</span><span class="class">.example</span><span class="class">.com</span>	<span class="tag">unknown</span>			<span class="tag">unknown</span>		<span class="tag">Fri</span>, 04 <span class="tag">Jul</span> 2014 08<span class="pseudo">:12</span><span class="pseudo">:42</span> <span class="tag">-0400</span>
+</pre></td></tr></table></figure><br>可以看到前面建立的仓库demo.example.com，成功的列出了。<br><br>下面使用apache代理gunicorn的请求，首先启用代理模块<br><br><figure class="highlight config"><table><tr><td class="gutter"><pre>1
+2
+</pre></td><td class="code"><pre>LoadModule proxy_module /usr/<span class="keyword">lib</span>/apache2/modules/mod_proxy.so
+LoadModule proxy_http_module /usr/<span class="keyword">lib</span>/apache2/modules/mod_proxy_http.so
+</pre></td></tr></table></figure>
+
+<p>配置apache虚拟主机  hgrepos.example.com.conf (apache2.4需要 “Require all granted”, 详细信息见<a href="http://httpd.apache.org/docs/2.4/upgrading.html" target="_blank" rel="external">http://httpd.apache.org/docs/2.4/upgrading.html</a>)</p>
+<figure class="highlight config"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+</pre></td><td class="code"><pre><span class="tag">&lt;VirtualHost *:80&gt;</span>
+<span class="keyword"><span class="common">ServerName</span></span> hgrepos.example.com
+<span class="keyword">ProxyRequests</span> <span class="literal">On</span>
+<span class="tag">&lt;Proxy *&gt;</span>
+<span class="keyword"><span class="common">Order</span></span> deny,allow
+<span class="keyword"><span class="common">Allow</span></span> from <span class="literal">all</span>
+<span class="keyword">Require</span> <span class="literal">all</span> granted
+<span class="tag">&lt;/Proxy&gt;</span>
+<span class="keyword">ProxyPass</span> / http://127.0.0.1:8001/
+<span class="keyword">ProxyPassReverse</span> / http://127.0.0.1:8001/
+<span class="tag">&lt;/VirtualHost&gt;</span>
+</pre></td></tr></table></figure>
+
+<p>如果用nginx，参考配置如下</p>
+<figure class="highlight config"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+</pre></td><td class="code"><pre>server {
+    listen          <span class="number">80</span>;
+    server_name     hgrepos<span class="built_in">.</span>example<span class="built_in">.</span>com;
+    server_name_in_redirect off;
+
+    access_log  /<span class="built_in">var</span>/<span class="keyword">log</span>/nginx/hg_access<span class="built_in">.</span><span class="keyword">log</span>;
+    error_log   /<span class="built_in">var</span>/<span class="keyword">log</span>/nginx/hg_error<span class="built_in">.</span><span class="keyword">log</span>;
+    send_timeout     <span class="number">3</span>m;
+    location <span class="subst">/</span> {
+        proxy_pass http:<span class="comment">//127.0.0.1:8001;</span>
+        proxy_redirect off;
+        proxy_connect_timeout <span class="number">3000</span>;
+        proxy_read_timeout <span class="number">3000</span>;
+        proxy_send_timeout <span class="number">3000</span>;
+        proxy_set_header Host <span class="variable">$host</span>;
+        proxy_set_header X<span class="attribute">-Real</span><span class="attribute">-IP</span> <span class="variable">$remote_addr</span>;
+        proxy_set_header X<span class="attribute">-Forwarded</span><span class="attribute">-For</span> <span class="variable">$proxy_add_x_forwarded_for</span>;
+        client_body_buffer_size <span class="number">128</span>k;
+        client_max_body_size <span class="number">2000</span>m;
+        proxy_buffering <span class="keyword">on</span>;
+        proxy_buffer_size <span class="number">4</span>k;
+        proxy_buffers <span class="number">4</span> <span class="number">32</span>k;
+        proxy_busy_buffers_size <span class="number">64</span>k;
+        proxy_temp_file_write_size <span class="number">64</span>k;
+    }
+}
+</pre></td></tr></table></figure>
+</div><footer class="post__foot u-cf"><ul class="post__tag u-fl"><li class="post__tag__item"><a href="/tags/mercurial/" class="post__tag__link">mercurial</a></li></ul><a href="/2014/07/04/mercurial-repository-install-guide/#disqus_thread" class="post__foot-link u-fr">0 COMMENTS</a></footer></article></main><footer class="foot"><div class="foot-copy u-fl">&copy; 2014 Yu Fang</div><menu class="page-menu u-fr"><li class="page-menu__item"><span title="Previous" class="page-menu__link icon-arrow-left page-menu__link--disabled"></span></li><li class="page-menu__item"><span title="Next" class="page-menu__link icon-arrow-right page-menu__link--disabled"></span></li></menu></footer><script>(function(h,g,l,k,j,i){j=h.createElement(g),i=h.getElementsByTagName(g)[0],
+j.src="//"+l+".disqus.com/"+k+".js",i.parentNode.insertBefore(j,i)})
+(document,"script","yeesblog","count");
+</script><script>var disqus_shortname = "yeesblog";
+(function () {
+var s = document.createElement('script'); s.async = true;
+s.type = 'text/javascript';
+s.src = 'http://' + disqus_shortname + '.disqus.com/count.js';
+(document.getElementsByTagName('HEAD')[0] || document.getElementsByTagName('BODY')[0]).appendChild(s);
+}());
+</script></body></html>
