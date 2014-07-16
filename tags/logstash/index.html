@@ -2,6 +2,7 @@
 <p><a href="http://logstash.net/" target="_blank" rel="external">Logstash</a> 运行于Jruby上的日志收集和分析系统，支持多种后端存储，包括elasticsearch, s3, riak, mongodb, redis等<br><a href="http://www.elasticsearch.org/" target="_blank" rel="external">Elasticsearch</a> Java写的搜索引擎，简单好用，很适合日志的存储和查询, 简称ES<br><a href="http://www.elasticsearch.org/overview/kibana/" target="_blank" rel="external">Kibana</a> Elasticsearch的查询前端，最早用PHP写的，后来用Ruby重新实现了一遍，最新版本是纯Javascript的，直接在浏览器端运行。</p>
 <p>架构上，在服务器不多的情况下，可以使用Logstash分析日志后，直接存储到ES里面，然后调用Kibana做日志查询。</p>
 <p>如果服务器很多，或者是需要跨网络，那么可以使用前向代理，做成树状结构，树叶是Logstash，分析完成后传给树枝<a href="https://github.com/elasticsearch/logstash-forwarder" target="_blank" rel="external">logstash-forwarder</a>, 然后传给树干Logstash, 最终输出汇总给ES</p>
+<p>树枝的角色一般叫做shipper，有很多方案可以代替logstash-forwarder, 比如redis, zeromq, rabbitmq等</p>
 <p>Logstash, elasticsearch, kibana的安装都很简单，这里直接略过，下面说下logstash是如何完成日志收集工作的。</p>
 <p>Logstash日志收集可以分成3大块，input, filter和output, 可以通过启动时指定配置文件来配置。</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre>1
@@ -39,7 +40,7 @@
 
 <p>可以看到指定输入的时候可以使用通配符监视多个文件。</p>
 <h3 id="Filter用来对日志做过滤，比较常用的filter有">Filter用来对日志做过滤，比较常用的filter有</h3>
-<p><a href="http://logstash.net/docs/1.4.2/filters/grok" target="_blank" rel="external">grok</a> 通过正则表达式把每一行的日志做匹配，把非结构化的信息变成结构化的<br><a href="http://logstash.net/docs/1.4.2/filters/date" target="_blank" rel="external">date</a> 可以用指定字段的值作为当前log的时间戳，而不是使用导入log时的系统时间。</p>
+<p><a href="http://logstash.net/docs/1.4.2/filters/grok" target="_blank" rel="external">grok</a> 通过正则表达式把每一行的日志做匹配，把非结构化的信息变成结构化的<br><a href="http://logstash.net/docs/1.4.2/filters/date" target="_blank" rel="external">date</a> 可以用指定字段的值作为当前log的时间戳，而不是使用导入log时的系统时间。<br><a href="http://logstash.net/docs/1.4.2/filters/multiline" target="_blank" rel="external">multiline</a> 可以把多行日志合并成一个logstash事件</p>
 <p>解释起来比较拗口，看实际的配置例子更容易理解。</p>
 <p><figure class="highlight config"><table><tr><td class="gutter"><pre>1
 2
@@ -66,6 +67,19 @@
 23
 24
 25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
 </pre></td><td class="code"><pre>filter {
   <span class="comment">#可以使用条件语句的, 中括号里面的[type]代表引用type这个字段的值</span>
   <span class="keyword">if</span> [type] == <span class="string">"access_log"</span> {
@@ -89,6 +103,19 @@
     date {
       match =&gt; [ <span class="string">"timestamp"</span> , <span class="string">"ISO8601"</span> ]
     }
+
+    <span class="comment">#增加[site], [log]字段，比如/web/mywebsite/logs/login_error_10.log</span>
+    <span class="comment">#匹配到的[site] == 'mywebsite', [log] = 'login_error_'</span>
+    ruby {
+        code =&gt; <span class="string">"
+           site = 'null'
+           log = 'null'
+           m = /(.*)\/(.*)\/logs(.*)\/([a-zA-Z\-_]+)(.*)\.(.*)/.match(event['path'])
+           site = m[2]; log=m[4] if m
+           event['site'] = site
+           event['log'] = log
+        "</span>
+    }
   }
 }
 </pre></td></tr></table></figure><br>上面的COMBINEDAPACHELOG是一组预定义的正则，<a href="https://github.com/logstash/logstash/tree/v1.4.2/patterns" target="_blank" rel="external">https://github.com/logstash/logstash/tree/v1.4.2/patterns</a>这里能看到更多的。</p>
@@ -102,14 +129,18 @@
 7
 8
 9
+10
+11
 </pre></td><td class="code"><pre>{
-	<span class="string">"message"</span> =&gt; <span class="string">"2014-07-14T22:12:26-07:00 INFO (6): Log detail"</span>,
-	<span class="string">"@version"</span> =&gt; <span class="string">"1"</span>,
-	<span class="string">"@timestamp"</span> =&gt; <span class="string">"2014-07-15T05:12:26.000Z"</span>,
-	<span class="string">"type"</span> =&gt; <span class="string">"web_log"</span>,
-	<span class="string">"host"</span> =&gt; <span class="string">"myserver.local"</span>,
-	<span class="string">"path"</span> =&gt; <span class="string">"/web/mywebsite/logs/201407/login_error_14.txt"</span>,
-	<span class="string">"timestamp"</span> =&gt; <span class="string">"2014-07-14T22:12:26-07:00"</span>
+  <span class="string">"message"</span> =&gt; <span class="string">"2014-07-14T22:12:26-07:00 INFO (6): Log detail"</span>,
+  <span class="string">"@version"</span> =&gt; <span class="string">"1"</span>,
+  <span class="string">"@timestamp"</span> =&gt; <span class="string">"2014-07-15T05:12:26.000Z"</span>,
+  <span class="string">"type"</span> =&gt; <span class="string">"web_log"</span>,
+  <span class="string">"host"</span> =&gt; <span class="string">"myserver.local"</span>,
+  <span class="string">"path"</span> =&gt; <span class="string">"/web/mywebsite/logs/201407/login_error_14.txt"</span>,
+  <span class="string">"timestamp"</span> =&gt; <span class="string">"2014-07-14T22:12:26-07:00"</span>
+  <span class="string">"site"</span> =&gt; <span class="string">"mywebsite"</span>,
+  <span class="string">"log"</span> =&gt; <span class="string">"login_error_"</span>  
 }
 </pre></td></tr></table></figure></p>
 <h2 id="在使用Filter转换好格式后，就可以配置output输出了">在使用Filter转换好格式后，就可以配置output输出了</h2>
