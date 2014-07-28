@@ -42,7 +42,7 @@
 <h3 id="Filter用来对日志做过滤，比较常用的filter有">Filter用来对日志做过滤，比较常用的filter有</h3>
 <p><a href="http://logstash.net/docs/1.4.2/filters/grok" target="_blank" rel="external">grok</a> 通过正则表达式把每一行的日志做匹配，把非结构化的信息变成结构化的<br><a href="http://logstash.net/docs/1.4.2/filters/date" target="_blank" rel="external">date</a> 可以用指定字段的值作为当前log的时间戳，而不是使用导入log时的系统时间。<br><a href="http://logstash.net/docs/1.4.2/filters/multiline" target="_blank" rel="external">multiline</a> 可以把多行日志合并成一个logstash事件</p>
 <p>解释起来比较拗口，看实际的配置例子更容易理解。</p>
-<p><figure class="highlight config"><table><tr><td class="gutter"><pre>1
+<figure class="highlight config"><table><tr><td class="gutter"><pre>1
 2
 3
 4
@@ -118,9 +118,7 @@
     }
   }
 }
-</pre></td></tr></table></figure><br>上面的COMBINEDAPACHELOG是一组预定义的正则，<a href="https://github.com/logstash/logstash/tree/v1.4.2/patterns" target="_blank" rel="external">https://github.com/logstash/logstash/tree/v1.4.2/patterns</a>这里能看到更多的。</p>
-<p>使用上面配置解析出的log如下</p>
-<p><figure class="highlight config"><table><tr><td class="gutter"><pre>1
+</pre></td></tr></table></figure><br>上面的COMBINEDAPACHELOG是一组预定义的正则，<a href="https://github.com/logstash/logstash/tree/v1.4.2/patterns" target="_blank" rel="external">https://github.com/logstash/logstash/tree/v1.4.2/patterns</a>这里能看到更多的。<br><br>使用上面配置解析出的log如下<br><br><figure class="highlight config"><table><tr><td class="gutter"><pre>1
 2
 3
 4
@@ -142,9 +140,7 @@
   <span class="string">"site"</span> =&gt; <span class="string">"mywebsite"</span>,
   <span class="string">"log"</span> =&gt; <span class="string">"login_error_"</span>  
 }
-</pre></td></tr></table></figure></p>
-<h2 id="在使用Filter转换好格式后，就可以配置output输出了">在使用Filter转换好格式后，就可以配置output输出了</h2>
-<p><figure class="highlight config"><table><tr><td class="gutter"><pre>1
+</pre></td></tr></table></figure><br>##在使用Filter转换好格式后，就可以配置output输出了<br><br><figure class="highlight config"><table><tr><td class="gutter"><pre>1
 2
 3
 4
@@ -152,8 +148,12 @@
   stdout { codec =&gt; rubydebug }
   elasticsearch_http { host =&gt; localhost port =&gt; <span class="number">9200</span>}
 }
-</pre></td></tr></table></figure><br>可以看到，我配置了2个输出，一个使用rubydebug的格式打印到console上，一个使用elasticsearch_http输出到ES。</p>
-<p>以上就是logstash的配置过程，最重点的部分在filter上。数据到了ES之后，使用kibana查询可以参考这里的<a href="http://www.elasticsearch.org/guide/en/kibana/current/" target="_blank" rel="external">介绍</a></p>
+</pre></td></tr></table></figure><br>可以看到，我配置了2个输出，一个使用rubydebug的格式打印到console上，一个使用elasticsearch_http输出到ES。<br><br>以上就是logstash的配置过程，最重点的部分在filter上。数据到了ES之后，使用kibana查询可以参考这里的<a href="http://www.elasticsearch.org/guide/en/kibana/current/" target="_blank" rel="external">介绍</a><br><br><br>补充: 如果不想处理多行消息，可以使用\v\r，代替\r\n，可以在写入log前统一处理, php代码如下:<br><br><figure class="highlight php"><table><tr><td class="gutter"><pre>1
+2
+</pre></td><td class="code"><pre><span class="variable">$message</span> = str_replace(<span class="keyword">array</span>(<span class="string">"\r\n"</span>,<span class="string">"\n"</span>,<span class="string">"\r"</span>), <span class="string">"\v"</span>, <span class="variable">$message</span>);
+<span class="variable">$message</span> = str_replace(<span class="string">"\v"</span>, <span class="string">"\v\r"</span>, <span class="variable">$message</span>);
+</pre></td></tr></table></figure>
+
 </div><footer class="post__foot u-cf"><ul class="post__tag u-fl"><li class="post__tag__item"><a href="/tags/logstash/" class="post__tag__link">logstash</a></li><li class="post__tag__item"><a href="/tags/elasticsearch/" class="post__tag__link">elasticsearch</a></li><li class="post__tag__item"><a href="/tags/kibana/" class="post__tag__link">kibana</a></li></ul><a href="/2014/07/15/log-collection-using-logstash-elasticsearch-and-kibana/#disqus_thread" class="post__foot-link u-fr">0 COMMENTS</a></footer></article><div class="comments"><div id="disqus_thread"><noscript>Please enable JavaScript to view the <a href="//disqus.com/?ref_noscript">comments powered by Disqus.</a>
 </noscript></div></div></main><footer class="foot"><div class="foot-copy u-fl">&copy; 2014 Yu Fang</div><menu class="page-menu u-fr"><li class="page-menu__item"><span title="Previous" class="page-menu__link icon-arrow-left page-menu__link--disabled"></span></li><li class="page-menu__item"><a title="Next" href="/2014/07/10/host-blog-on-github-using-hexo/" class="page-menu__link icon-arrow-right"></a></li></menu></footer><script>(function(h,g,l,k,j,i){j=h.createElement(g),i=h.getElementsByTagName(g)[0],
 j.src="//"+l+".disqus.com/"+k+".js",i.parentNode.insertBefore(j,i)})
