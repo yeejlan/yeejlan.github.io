@@ -1,0 +1,123 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="alternative" href="/atom.xml" title="Yee's 部落格" type="application/atom+xml"><link rel="icon" href="/favicon.png"><title>配置Virtualbox虚拟机网卡，支持内外网访问 - Yee's 部落格</title><link rel="stylesheet" href="/css/main.css" type="text/css"><!--[if lt IE 9]><script>(function(a,b){a="abbr article aside audio bdi canvas data datalist details dialog figcaption figure footer header hgroup main mark meter nav output progress section summary template time video".split(" ");for(b=a.length-1;b>=0;b--)document.createElement(a[b])})()</script><![endif]--></head><body><header class="head"><h1 class="head-title u-fl"><a href="/">Yee's 部落格</a></h1><nav class="head-nav u-fr"><ul class="head-nav__list"><li class="head-nav__item"><a href="/" class="head-nav__link">Home</a></li><li class="head-nav__item"><a href="/archives" class="head-nav__link">Archives</a></li></ul></nav></header><main class="main"><article class="post"><header class="post__head"><time datetime="2014-07-31T01:30:00.000Z" class="post__time">July 31, 2014</time><h1 class="post__title"><a href="/2014/07/31/config-virtualbox-vm-to-enable-both-internet-and-local-network-access/">配置Virtualbox虚拟机网卡，支持内外网访问</a></h1></header><div class="post__main echo"><p>使用Virtualbox新建完成虚拟机后，打开设置-&gt;网络，第一块网卡选择”网络地址转换(NAT)”，用来共享上网；第二块网卡选择”桥接网卡”,在网卡列表里面选择内网所连的那块网卡,这个虚拟网卡用来支持内网访问。</p>
+<p>接下来启动虚拟机配置网卡:</p>
+<p>CentOS系列:</p>
+<p>配置第一块网卡，因为是NAT网络，直接使用dhcp服务自动配置</p>
+<figure class="highlight config"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+</pre></td><td class="code"><pre><span class="comment">#sudo vi /etc/sysconfig/network-scripts/ifcfg-eth0</span>
+<span class="constant">DEVICE</span>=eth0
+<span class="constant">TYPE</span>=Ethernet
+<span class="constant">UUID</span>=ccd8c9e7-f8a8-413d-a2eb-6c343f540ab1
+<span class="comment">#开机启用</span>
+<span class="constant">ONBOOT</span>=yes
+<span class="constant">NM_CONTROLLED</span>=yes
+<span class="comment">#使用dhcp自动配置</span>
+<span class="constant">BOOTPROTO</span>=dhcp
+<span class="constant">HWADDR</span>=08:00:27:D9:32:00
+<span class="constant">NAME</span>="System eth0"
+</pre></td></tr></table></figure>
+
+<p>配置第二块网卡，桥接网络，需要手工配置</p>
+<figure class="highlight config"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+</pre></td><td class="code"><pre><span class="comment">#sudo vi /etc/sysconfig/network-scripts/ifcfg-eth0</span>
+<span class="constant">DEVICE</span>=eth1
+<span class="constant">TYPE</span>=Ethernet
+<span class="constant">UUID</span>=741f9e69-c4f0-4321-a0ea-427611f53f8f
+<span class="comment">#开机启用</span>
+<span class="constant">ONBOOT</span>=yes
+<span class="constant">NM_CONTROLLED</span>=yes
+<span class="comment">#手工配置</span>
+<span class="constant">BOOTPROTO</span>=static
+<span class="constant">HWADDR</span>=08:00:27:78:C1:DF
+<span class="comment">#内网IP地址</span>
+<span class="constant">IPADDR</span>=192.168.1.101
+<span class="comment">#子网掩码，相当于255.255.255.0</span>
+<span class="constant">PREFIX</span>=24
+<span class="comment">#这里忽略了网关的配置</span>
+<span class="comment">#GATEWAY=x.x.x.x</span>
+<span class="constant">NAME</span>="System eth1"
+</pre></td></tr></table></figure>
+
+<p>检查/etc/sysconfig/network，确保里面没有网关的配置</p>
+<figure class="highlight config"><table><tr><td class="gutter"><pre>1
+2
+3
+</pre></td><td class="code"><pre><span class="constant">NETWORKING</span>=yes
+<span class="constant">HOSTNAME</span>=vm3
+<span class="comment">#GATEWAY=x.x.x.x</span>
+</pre></td></tr></table></figure>
+
+<p>sudo service network restart, ifconfig信息如下</p>
+<figure class="highlight config"><table><tr><td class="gutter"><pre>1
+2
+</pre></td><td class="code"><pre><span class="tag">eth0</span>   <span class="tag">inet</span> <span class="tag">addr</span><span class="pseudo">:10</span><span class="class">.0</span><span class="class">.2</span><span class="class">.15</span>  
+<span class="tag">eth1</span>   <span class="tag">inet</span> <span class="tag">addr</span><span class="pseudo">:192</span><span class="class">.168</span><span class="class">.1</span><span class="class">.101</span>
+</pre></td></tr></table></figure>
+
+<p>route下确保缺省网关使用的是eth0(网络地址转换, aka NAT)的网关</p>
+<figure class="highlight config"><table><tr><td class="gutter"><pre>1
+</pre></td><td class="code"><pre><span class="default"><span class="keyword">default</span>         10.0.2.2        0.0.0.0         <span class="type">UG</span>    0      0        0 eth0</span>
+</pre></td></tr></table></figure>
+
+<p>这样配置后就既能通过eth0共享上网，又能通过eth1跟内网主机通信了。</p>
+<p>Ubuntu系统配置如下:</p>
+<figure class="highlight config"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+</pre></td><td class="code"><pre><span class="preprocessor">#sudo vi /etc/network/interfaces</span>
+
+auto eth0
+iface eth0 inet dhcp
+
+auto eth1
+iface eth1 inet <span class="keyword">static</span>
+address <span class="number">192.168</span><span class="number">.1</span><span class="number">.102</span>
+netmask <span class="number">255.255</span><span class="number">.255</span><span class="number">.0</span>
+<span class="preprocessor">#gateway x.x.x.x</span>
+</pre></td></tr></table></figure>
+
+<p>sudo ifup eth0 eth1，就可以了，如果上网有问题请检查下缺省网关，确保使用的是eth0所在网段的网关。</p>
+</div><footer class="post__foot u-cf"><ul class="post__tag u-fl"><li class="post__tag__item"><a href="/tags/virtualbox/" class="post__tag__link">virtualbox</a></li></ul><a href="/2014/07/31/config-virtualbox-vm-to-enable-both-internet-and-local-network-access/#disqus_thread" class="post__foot-link u-fr">0 COMMENTS</a></footer></article><div class="comments"><div id="disqus_thread"><noscript>Please enable JavaScript to view the <a href="//disqus.com/?ref_noscript">comments powered by Disqus.</a>
+</noscript></div></div></main><footer class="foot"><div class="foot-copy u-fl">&copy; 2014 Yu Fang</div><menu class="page-menu u-fr"><li class="page-menu__item"><span title="Previous" class="page-menu__link icon-arrow-left page-menu__link--disabled"></span></li><li class="page-menu__item"><a title="Next" href="/2014/07/15/log-collection-using-logstash-elasticsearch-and-kibana/" class="page-menu__link icon-arrow-right"></a></li></menu></footer><script>(function(h,g,l,k,j,i){j=h.createElement(g),i=h.getElementsByTagName(g)[0],
+j.src="//"+l+".disqus.com/"+k+".js",i.parentNode.insertBefore(j,i)})
+(document,"script","yeesblog","embed");
+</script><script>var disqus_shortname = "yeesblog";
+(function () {
+var s = document.createElement('script'); s.async = true;
+s.type = 'text/javascript';
+s.src = 'http://' + disqus_shortname + '.disqus.com/count.js';
+(document.getElementsByTagName('HEAD')[0] || document.getElementsByTagName('BODY')[0]).appendChild(s);
+}());
+</script></body></html>
